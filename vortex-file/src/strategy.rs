@@ -317,3 +317,108 @@ impl WriteStrategyBuilder {
         Arc::new(table_strategy)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vortex_array::dtype::Field;
+    use vortex_layout::layouts::flat::writer::FlatLayoutStrategy;
+
+    #[test]
+    fn test_default_builder() {
+        let builder = WriteStrategyBuilder::default();
+        assert_eq!(builder.row_block_size, 8192);
+        assert!(builder.compressor.is_none());
+        assert!(builder.field_writers.is_empty());
+        assert!(builder.allow_encodings.is_none());
+        assert!(builder.flat_strategy.is_none());
+    }
+
+    #[test]
+    fn test_with_row_block_size() {
+        let builder = WriteStrategyBuilder::default().with_row_block_size(4096);
+        assert_eq!(builder.row_block_size, 4096);
+    }
+
+    #[test]
+    fn test_with_field_writer() {
+        let strategy = Arc::new(FlatLayoutStrategy::default());
+        let builder = WriteStrategyBuilder::default()
+            .with_field_writer(Field::from("field_name"), strategy.clone());
+
+        assert_eq!(builder.field_writers.len(), 1);
+        assert!(builder.field_writers.contains_key(&FieldPath::from(Field::from("field_name"))));
+    }
+
+    #[test]
+    fn test_with_allow_encodings() {
+        let registry = ArrayRegistry::default();
+        let builder = WriteStrategyBuilder::default().with_allow_encodings(registry.clone());
+
+        assert!(builder.allow_encodings.is_some());
+    }
+
+    #[test]
+    fn test_with_flat_strategy() {
+        let flat_strategy = Arc::new(FlatLayoutStrategy::default());
+        let builder = WriteStrategyBuilder::default().with_flat_strategy(flat_strategy);
+
+        assert!(builder.flat_strategy.is_some());
+    }
+
+    #[test]
+    fn test_builder_chaining() {
+        let flat_strategy = Arc::new(FlatLayoutStrategy::default());
+        let field_strategy = Arc::new(FlatLayoutStrategy::default());
+
+        let builder = WriteStrategyBuilder::default()
+            .with_row_block_size(4096)
+            .with_field_writer(Field::from("col_a"), field_strategy)
+            .with_flat_strategy(flat_strategy);
+
+        assert_eq!(builder.row_block_size, 4096);
+        assert_eq!(builder.field_writers.len(), 1);
+        assert!(builder.flat_strategy.is_some());
+    }
+
+    #[test]
+    fn test_build_creates_strategy() {
+        let _strategy = WriteStrategyBuilder::default().build();
+        // Just verify that build() doesn't panic and returns a valid Arc
+    }
+
+    #[test]
+    fn test_build_with_custom_flat_strategy() {
+        let flat_strategy = Arc::new(FlatLayoutStrategy::default());
+        let _strategy = WriteStrategyBuilder::default()
+            .with_flat_strategy(flat_strategy)
+            .build();
+        // Just verify that build() doesn't panic
+    }
+
+    #[test]
+    fn test_field_writer_nested_path() {
+        let strategy = Arc::new(FlatLayoutStrategy::default());
+        let builder = WriteStrategyBuilder::default()
+            .with_field_writer(Field::from("outer"), strategy.clone());
+
+        assert_eq!(builder.field_writers.len(), 1);
+        assert!(builder
+            .field_writers
+            .contains_key(&FieldPath::from(Field::from("outer"))));
+    }
+
+    #[test]
+    fn test_multiple_field_writers() {
+        let strategy1 = Arc::new(FlatLayoutStrategy::default());
+        let strategy2 = Arc::new(FlatLayoutStrategy::default());
+
+        let builder = WriteStrategyBuilder::default()
+            .with_field_writer(Field::from("col_a"), strategy1)
+            .with_field_writer(Field::from("col_b"), strategy2);
+
+        assert_eq!(builder.field_writers.len(), 2);
+        assert!(builder.field_writers.contains_key(&FieldPath::from(Field::from("col_a"))));
+        assert!(builder.field_writers.contains_key(&FieldPath::from(Field::from("col_b"))));
+    }
+}
