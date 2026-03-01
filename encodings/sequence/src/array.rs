@@ -466,9 +466,14 @@ mod tests {
     }
 
     #[test]
-    fn test_sequence_min_max() {
-        assert!(SequenceArray::typed_new(-127i8, -1i8, Nullability::NonNullable, 2).is_ok());
-        assert!(SequenceArray::typed_new(126i8, -1i8, Nullability::NonNullable, 2).is_ok());
+    fn test_sequence_boundary_values() {
+        // Sequence [-127, -128]: the final value reaches i8::MIN exactly, so construction succeeds.
+        let arr = SequenceArray::typed_new(-127i8, -1i8, Nullability::NonNullable, 2).unwrap();
+        assert_arrays_eq!(arr, PrimitiveArray::from_iter([-127i8, -128]));
+
+        // Sequence [126, 125]: well within i8 range.
+        let arr = SequenceArray::typed_new(126i8, -1i8, Nullability::NonNullable, 2).unwrap();
+        assert_arrays_eq!(arr, PrimitiveArray::from_iter([126i8, 125]));
     }
 
     #[test]

@@ -186,11 +186,16 @@ fn test_zstd_decompress_var_bin_view() {
 
 #[test]
 fn test_sliced_array_children() {
+    // Regression test: calling `children()` on a sliced ZstdArray should not panic.
     let data: Vec<Option<i32>> = (0..10).map(|v| (v != 5).then_some(v)).collect();
     let compressed =
         ZstdArray::from_primitive(&PrimitiveArray::from_option_iter(data), 0, 100).unwrap();
     let sliced = compressed.slice(0..4).unwrap();
-    sliced.children();
+    drop(sliced.children()); // Should not panic.
+    assert_nth_scalar!(sliced, 0, 0_i32);
+    assert_nth_scalar!(sliced, 1, 1_i32);
+    assert_nth_scalar!(sliced, 2, 2_i32);
+    assert_nth_scalar!(sliced, 3, 3_i32);
 }
 
 /// Tests that each beginning of a frame in ZSTD matches
